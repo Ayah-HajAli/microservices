@@ -1,0 +1,111 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: ecommerce
+      POSTGRES_PASSWORD: devpassword
+      POSTGRES_DB: ecommerce
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ecommerce -d ecommerce"]
+      interval: 6s
+      timeout: 30s
+      retries: 10
+    networks:
+      - backplane
+
+  auth-service:
+    build: ./services/auth-service
+    container_name: ecom-auth
+    env_file: ./services/auth-service/.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "3001:3001"
+    networks:
+      - backplane
+  
+  product-service:
+    build: ./services/product-service
+    container_name: ecom-product
+    env_file: ./services/product-service/.env
+    environment:
+      SEED_ON_BOOT: "true"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "3002:3002"
+    networks:
+      - backplane
+
+  order-service:
+    build: ./services/order-service
+    container_name: ecom-order
+    env_file: ./services/order-service/.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      product-service:
+        condition: service_started
+      notification-service:
+        condition: service_started
+    ports:
+      - "3003:3003"
+    networks:
+      - backplane
+
+  notification-service:
+    build: ./services/notification-service
+    container_name: ecom-notification
+    env_file: ./services/notification-service/.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "3004:3004"
+    networks:
+      - backplane
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: /api
+    container_name: ecom-frontend
+    ports:
+      - "5173:8080"
+    networks:
+      - backplane
+
+  nginx:
+    build: ./nginx
+    container_name: ecom-nginx
+    ports:
+      - "8080:8080"
+    # FIX: Converted array to object syntax for clean structural consistency
+    depends_on:
+      auth-service:
+        condition: service_started
+      product-service:
+        condition: service_started
+      order-service:
+        condition: service_started
+      notification-service:
+        condition: service_started
+      frontend:
+        condition: service_started
+    networks:
+      - backplane
+
+# FIX: Changed "network" to "networks"
+networks:
+  backplane:
+    driver: bridge
+
+volumes:
+  postgres_data:

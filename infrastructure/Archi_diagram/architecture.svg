@@ -1,0 +1,239 @@
+<svg viewBox="0 0 1400 980" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc" font-family="ui-sans-serif, system-ui, -apple-system, sans-serif">
+  <title id="title">AWS Architecture — DevOps Microservices (split per service)</title>
+  <desc id="desc">VPC with 2 availability zones, public/app/data subnets, one ALB with four target groups routing to four per-service auto scaling groups, RDS Postgres Multi-AZ, CloudFront in front of S3 for the SPA, supporting services ECR, CloudWatch, SSM Parameter Store on the right.</desc>
+
+  <style>
+    .label { font-size: 13px; fill: #1f2937; }
+    .small { font-size: 11px; fill: #4b5563; }
+    .micro { font-size: 10px; fill: #6b7280; }
+    .title { font-size: 14px; font-weight: 600; fill: #111827; }
+    .stitle { font-size: 12px; font-weight: 600; fill: #111827; }
+    .badge { font-size: 10px; fill: #ffffff; font-weight: 600; }
+    .cidr { font-size: 11px; fill: #6b7280; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .pub  { fill: #ecfeff; stroke: #0891b2; }
+    .app  { fill: #eff6ff; stroke: #2563eb; }
+    .data { fill: #faf5ff; stroke: #7c3aed; }
+    .vpc  { fill: #fffbeb; stroke: #d97706; }
+    .ext  { fill: #f9fafb; stroke: #9ca3af; }
+    .svc  { fill: #ffffff; stroke: #1f2937; }
+    .flow { stroke: #1f2937; stroke-width: 1.4; fill: none; }
+    .flow-dim { stroke: #9ca3af; stroke-width: 1.2; fill: none; stroke-dasharray: 4 3; }
+  </style>
+
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#1f2937"/>
+    </marker>
+    <marker id="arrow-dim" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#9ca3af"/>
+    </marker>
+  </defs>
+
+  <rect x="40" y="30" width="160" height="46" rx="6" class="ext"/>
+  <text x="120" y="50" text-anchor="middle" class="title">Users</text>
+  <text x="120" y="66" text-anchor="middle" class="small">browser • mobile</text>
+
+  <rect x="240" y="30" width="180" height="46" rx="6" class="ext"/>
+  <text x="330" y="50" text-anchor="middle" class="title">CloudFront</text>
+  <text x="330" y="66" text-anchor="middle" class="small">CDN • TLS • caching</text>
+
+  <rect x="460" y="22" width="180" height="62" rx="6" class="ext"/>
+  <text x="550" y="42" text-anchor="middle" class="title">S3</text>
+  <text x="550" y="58" text-anchor="middle" class="small">SPA static assets</text>
+  <text x="550" y="74" text-anchor="middle" class="micro">vite build output</text>
+
+  <line x1="200" y1="53" x2="238" y2="53" class="flow" marker-end="url(#arrow)"/>
+  <line x1="420" y1="45" x2="458" y2="45" class="flow" marker-end="url(#arrow)"/>
+  <text x="439" y="38" class="micro" text-anchor="middle">/ → S3</text>
+  <line x1="420" y1="63" x2="460" y2="120" class="flow" marker-end="url(#arrow)"/>
+  <text x="450" y="98" class="micro">/api/* → ALB</text>
+
+  <rect x="40" y="110" width="1080" height="820" rx="12" class="vpc" stroke-width="2"/>
+  <rect x="56" y="120" width="170" height="22" rx="3" fill="#d97706"/>
+  <text x="141" y="136" class="badge" text-anchor="middle">VPC 10.0.0.0/16 • us-east-1</text>
+
+  <rect x="240" y="120" width="120" height="22" rx="3" fill="#0891b2"/>
+  <text x="300" y="136" class="badge" text-anchor="middle">Internet Gateway</text>
+
+  <text x="320" y="170" class="stitle" text-anchor="middle">us-east-1a</text>
+  <text x="850" y="170" class="stitle" text-anchor="middle">us-east-1b</text>
+
+  <rect x="70"  y="180" width="500" height="120" rx="8" class="pub"/>
+  <rect x="600" y="180" width="500" height="120" rx="8" class="pub"/>
+  <text x="84" y="200" class="stitle">Public subnet</text>
+  <text x="84" y="216" class="cidr">10.0.0.0/24</text>
+  <text x="614" y="200" class="stitle">Public subnet</text>
+  <text x="614" y="216" class="cidr">10.0.1.0/24</text>
+
+  <rect x="280" y="220" width="540" height="60" rx="6" class="svc"/>
+  <text x="550" y="244" text-anchor="middle" class="title">Application Load Balancer</text>
+  <text x="550" y="262" text-anchor="middle" class="small">listener 443 → path-based rules → 4 target groups</text>
+  <text x="550" y="276" text-anchor="middle" class="micro">/api/auth/* • /api/products/* • /api/orders/* • /api/notifications/*</text>
+
+  <rect x="84" y="245" width="140" height="44" rx="6" class="svc"/>
+  <text x="154" y="263" text-anchor="middle" class="stitle">NAT Gateway</text>
+  <text x="154" y="279" text-anchor="middle" class="micro">single — cost-optimized</text>
+
+  <rect x="930" y="245" width="160" height="44" rx="6" class="ext" stroke-dasharray="3 3"/>
+  <text x="1010" y="263" text-anchor="middle" class="small">(2nd NAT optional)</text>
+  <text x="1010" y="279" text-anchor="middle" class="micro">add for AZ-failover</text>
+
+  <rect x="70"  y="320" width="500" height="290" rx="8" class="app"/>
+  <rect x="600" y="320" width="500" height="290" rx="8" class="app"/>
+  <text x="84" y="340" class="stitle">Private app subnet</text>
+  <text x="84" y="356" class="cidr">10.0.10.0/24</text>
+  <text x="614" y="340" class="stitle">Private app subnet</text>
+  <text x="614" y="356" class="cidr">10.0.11.0/24</text>
+
+  <rect x="84"  y="372" width="220" height="50" rx="6" class="svc"/>
+  <text x="194" y="392" text-anchor="middle" class="stitle">auth-service ASG</text>
+  <text x="194" y="408" text-anchor="middle" class="micro">EC2 t4g.small • :3001</text>
+  <rect x="614" y="372" width="220" height="50" rx="6" class="svc"/>
+  <text x="724" y="392" text-anchor="middle" class="stitle">auth-service ASG</text>
+  <text x="724" y="408" text-anchor="middle" class="micro">EC2 t4g.small • :3001</text>
+
+  <rect x="84"  y="430" width="220" height="50" rx="6" class="svc"/>
+  <text x="194" y="450" text-anchor="middle" class="stitle">product-service ASG</text>
+  <text x="194" y="466" text-anchor="middle" class="micro">EC2 t4g.small • :3002</text>
+  <rect x="614" y="430" width="220" height="50" rx="6" class="svc"/>
+  <text x="724" y="450" text-anchor="middle" class="stitle">product-service ASG</text>
+  <text x="724" y="466" text-anchor="middle" class="micro">EC2 t4g.small • :3002</text>
+
+  <rect x="84"  y="488" width="220" height="50" rx="6" class="svc"/>
+  <text x="194" y="508" text-anchor="middle" class="stitle">order-service ASG</text>
+  <text x="194" y="524" text-anchor="middle" class="micro">EC2 t4g.small • :3003</text>
+  <rect x="614" y="488" width="220" height="50" rx="6" class="svc"/>
+  <text x="724" y="508" text-anchor="middle" class="stitle">order-service ASG</text>
+  <text x="724" y="524" text-anchor="middle" class="micro">EC2 t4g.small • :3003</text>
+
+  <rect x="84"  y="546" width="220" height="50" rx="6" class="svc"/>
+  <text x="194" y="566" text-anchor="middle" class="stitle">notification-service ASG</text>
+  <text x="194" y="582" text-anchor="middle" class="micro">EC2 t4g.small • :3004</text>
+  <rect x="614" y="546" width="220" height="50" rx="6" class="svc"/>
+  <text x="724" y="566" text-anchor="middle" class="stitle">notification-service ASG</text>
+  <text x="724" y="582" text-anchor="middle" class="micro">EC2 t4g.small • :3004</text>
+
+  <line x1="304" y1="397" x2="612" y2="397" class="flow-dim" marker-end="url(#arrow-dim)" marker-start="url(#arrow-dim)"/>
+  <text x="458" y="390" class="micro" text-anchor="middle">ASG spans both AZs</text>
+
+  <rect x="70"  y="630" width="500" height="130" rx="8" class="data"/>
+  <rect x="600" y="630" width="500" height="130" rx="8" class="data"/>
+  <text x="84" y="650" class="stitle">Private data subnet</text>
+  <text x="84" y="666" class="cidr">10.0.20.0/24</text>
+  <text x="614" y="650" class="stitle">Private data subnet</text>
+  <text x="614" y="666" class="cidr">10.0.21.0/24</text>
+
+  <rect x="170" y="680" width="280" height="60" rx="6" class="svc"/>
+  <text x="310" y="702" text-anchor="middle" class="title">RDS Postgres — Primary</text>
+  <text x="310" y="720" text-anchor="middle" class="small">db.t4g.micro • port 5432</text>
+  <text x="310" y="734" text-anchor="middle" class="micro">automated backups • encrypted</text>
+
+  <rect x="700" y="680" width="280" height="60" rx="6" class="svc"/>
+  <text x="840" y="702" text-anchor="middle" class="title">RDS Postgres — Standby</text>
+  <text x="840" y="720" text-anchor="middle" class="small">synchronous replica</text>
+  <text x="840" y="734" text-anchor="middle" class="micro">automatic failover</text>
+
+  <line x1="450" y1="710" x2="700" y2="710" class="flow-dim" marker-end="url(#arrow-dim)" marker-start="url(#arrow-dim)"/>
+  <text x="575" y="704" class="micro" text-anchor="middle">sync replication</text>
+
+  <line x1="300" y1="142" x2="300" y2="178" class="flow" marker-end="url(#arrow)"/>
+  <line x1="154" y1="245" x2="154" y2="178" class="flow" marker-end="url(#arrow)"/>
+  <text x="174" y="220" class="micro">RT: 0/0 → IGW</text>
+  <line x1="154" y1="289" x2="154" y2="370" class="flow-dim" marker-end="url(#arrow-dim)"/>
+  <text x="200" y="335" class="micro">RT: 0/0 → NAT (egress only)</text>
+
+  <line x1="380" y1="280" x2="240" y2="370" class="flow" marker-end="url(#arrow)"/>
+  <line x1="450" y1="280" x2="240" y2="428" class="flow" marker-end="url(#arrow)"/>
+  <line x1="500" y1="280" x2="240" y2="486" class="flow" marker-end="url(#arrow)"/>
+  <line x1="560" y1="280" x2="240" y2="544" class="flow" marker-end="url(#arrow)"/>
+
+  <line x1="194" y1="596" x2="290" y2="678" class="flow" marker-end="url(#arrow)"/>
+  <text x="220" y="640" class="micro">5432 (sg→sg)</text>
+
+  <line x1="304" y1="513" x2="304" y2="551" class="flow-dim" marker-end="url(#arrow-dim)"/>
+  <text x="318" y="538" class="micro">events (HTTP)</text>
+
+  <rect x="850" y="780" width="250" height="130" rx="6" class="ext"/>
+  <text x="975" y="800" text-anchor="middle" class="stitle">Subnet plan</text>
+  <text x="864" y="820" class="micro">Public: /24 × 2 — ALB, NAT</text>
+  <text x="864" y="836" class="micro">App: /24 × 2 — EC2/ASG</text>
+  <text x="864" y="852" class="micro">Data: /24 × 2 — RDS</text>
+  <text x="864" y="876" class="micro">Public RT: 0/0 → IGW</text>
+  <text x="864" y="892" class="micro">App RT: 0/0 → NAT</text>
+  <text x="864" y="906" class="micro">Data RT: local only</text>
+
+  <rect x="70" y="780" width="350" height="130" rx="6" class="ext"/>
+  <text x="245" y="800" text-anchor="middle" class="stitle">Security groups (least privilege)</text>
+  <text x="84" y="820" class="micro">alb-sg : 443 from 0.0.0.0/0</text>
+  <text x="84" y="836" class="micro">auth-sg : 3001 from alb-sg only</text>
+  <text x="84" y="852" class="micro">product-sg : 3002 from alb-sg, 3003 from order-sg</text>
+  <text x="84" y="868" class="micro">order-sg : 3003 from alb-sg</text>
+  <text x="84" y="884" class="micro">notification-sg : 3004 from alb-sg, order-sg</text>
+  <text x="84" y="900" class="micro">rds-sg : 5432 from all *-sg, deny else</text>
+
+  <rect x="440" y="780" width="380" height="130" rx="6" class="ext"/>
+  <text x="630" y="800" text-anchor="middle" class="stitle">Monthly cost (us-east-1, no traffic)</text>
+  <text x="454" y="820" class="micro">ALB ≈ $22  •  NAT GW × 1 ≈ $33  •  EC2 4× t4g.small ≈ $48</text>
+  <text x="454" y="836" class="micro">RDS db.t4g.micro single-AZ ≈ $13  (Multi-AZ ≈ $30)</text>
+  <text x="454" y="852" class="micro">CloudFront free tier  •  S3 cents  •  ECR cents</text>
+  <text x="454" y="868" class="micro">Parameter Store free  •  CloudWatch within free tier</text>
+  <text x="454" y="888" class="stitle">Lab total ≈ $70 / mo   •   Prod (Multi-AZ, min=2) ≈ $220 / mo</text>
+
+  <rect x="1150" y="30" width="220" height="900" rx="10" class="ext"/>
+  <text x="1260" y="56" text-anchor="middle" class="title">Supporting AWS services</text>
+
+  <rect x="1166" y="76" width="190" height="56" rx="6" class="svc"/>
+  <text x="1261" y="96" text-anchor="middle" class="stitle">ECR</text>
+  <text x="1261" y="112" text-anchor="middle" class="micro">4 private repos</text>
+  <text x="1261" y="126" text-anchor="middle" class="micro">image scanning on push</text>
+
+  <rect x="1166" y="142" width="190" height="76" rx="6" class="svc"/>
+  <text x="1261" y="162" text-anchor="middle" class="stitle">CloudWatch</text>
+  <text x="1261" y="178" text-anchor="middle" class="micro">log groups per service</text>
+  <text x="1261" y="192" text-anchor="middle" class="micro">metrics + alarms</text>
+  <text x="1261" y="206" text-anchor="middle" class="micro">5xx, RDS CPU, ASG</text>
+
+  <rect x="1166" y="228" width="190" height="60" rx="6" class="svc"/>
+  <text x="1261" y="248" text-anchor="middle" class="stitle">Parameter Store</text>
+  <text x="1261" y="264" text-anchor="middle" class="micro">SecureString (free)</text>
+  <text x="1261" y="278" text-anchor="middle" class="micro">JWT_SECRET • DB password</text>
+
+  <rect x="1166" y="298" width="190" height="60" rx="6" class="svc"/>
+  <text x="1261" y="318" text-anchor="middle" class="stitle">IAM</text>
+  <text x="1261" y="334" text-anchor="middle" class="micro">instance role per service</text>
+  <text x="1261" y="348" text-anchor="middle" class="micro">least privilege</text>
+
+  <rect x="1166" y="368" width="190" height="60" rx="6" class="svc"/>
+  <text x="1261" y="388" text-anchor="middle" class="stitle">SSM Session Manager</text>
+  <text x="1261" y="404" text-anchor="middle" class="micro">no SSH, no bastion</text>
+  <text x="1261" y="418" text-anchor="middle" class="micro">audited shell access</text>
+
+  <rect x="1166" y="438" width="190" height="60" rx="6" class="svc"/>
+  <text x="1261" y="458" text-anchor="middle" class="stitle">S3 — alb-logs</text>
+  <text x="1261" y="474" text-anchor="middle" class="micro">access logs</text>
+  <text x="1261" y="488" text-anchor="middle" class="micro">lifecycle to glacier</text>
+
+  <rect x="1166" y="508" width="190" height="72" rx="6" class="svc"/>
+  <text x="1261" y="528" text-anchor="middle" class="stitle">ACM</text>
+  <text x="1261" y="544" text-anchor="middle" class="micro">TLS cert for ALB</text>
+  <text x="1261" y="558" text-anchor="middle" class="micro">us-east-1 cert</text>
+  <text x="1261" y="572" text-anchor="middle" class="micro">for CloudFront too</text>
+
+  <rect x="1166" y="590" width="190" height="76" rx="6" class="ext" stroke-dasharray="3 3"/>
+  <text x="1261" y="610" text-anchor="middle" class="stitle">Deferred</text>
+  <text x="1261" y="626" text-anchor="middle" class="micro">SQS + DLQ</text>
+  <text x="1261" y="640" text-anchor="middle" class="micro">SES email</text>
+  <text x="1261" y="654" text-anchor="middle" class="micro">Route 53 / WAF</text>
+
+  <rect x="1166" y="676" width="190" height="80" rx="6" class="ext"/>
+  <text x="1261" y="696" text-anchor="middle" class="stitle">Build order</text>
+  <text x="1261" y="712" text-anchor="middle" class="micro">1 VPC → 2 IGW</text>
+  <text x="1261" y="726" text-anchor="middle" class="micro">3 subnets → 4 NAT</text>
+  <text x="1261" y="740" text-anchor="middle" class="micro">5 RT → 6 SG → 7 RDS</text>
+  <text x="1261" y="754" text-anchor="middle" class="micro">8 ECR → 9 EC2/ASG → 10 ALB</text>
+
+  <rect x="1166" y="766" width="190" height="60" rx="6" class="ext"/>
+  <text x="1261" y="786" text-anchor="middle" class="stitle">Then add</text>
+  <text x="1261" y="802" text-anchor="middle" class="micro">CloudFront → S3 SPA</text>
+  <text x="1261" y="816" text-anchor="middle" class="micro">DNS, CW alarms</text>
+</svg>
