@@ -1,62 +1,31 @@
-name: Deploy
-
-on:
-  workflow_dispatch:
-    inputs:
-      environment:
-        description: Target environment
-        required: true
-        type: choice
-        options:
-          - development
-          - staging
-          - production
-        default: development
-
-      version:
-        description: Docker image version
-        required: true
-        default: latest
-
-permissions:
-  contents: read
-
-jobs:
-  deploy:
-    name: Deploy to ${{ inputs.environment }}
-    runs-on: ubuntu-latest
-
-    environment:
-      name: ${{ inputs.environment }}
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
       - name: Deploy to EC2
         uses: appleboy/ssh-action@v1.2.2
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          script_stop: true
+          command_timeout: 20m
           script: |
-            set -e
-
             echo "======================================"
             echo "Starting deployment"
             echo "Environment: ${{ inputs.environment }}"
             echo "Version:     ${{ inputs.version }}"
             echo "======================================"
 
-            cd ~/DevOps_Microservices_FUll_Lifecycle-main
+            REPO_DIR=$(find "$HOME" -maxdepth 3 -type f -name "docker-compose.yml" -exec dirname {} \; | head -n 1)
+
+            if [ -z "$REPO_DIR" ]; then
+              echo "ERROR: Could not find docker-compose.yml"
+              exit 1
+            fi
+
+            echo "Repository found at: $REPO_DIR"
+
+            cd "$REPO_DIR" || exit 1
 
             echo "Pulling latest code..."
             git fetch origin
             git reset --hard origin/main
-
-            echo "Stopping old containers..."
-            docker compose down
 
             echo "Building and starting application..."
             docker compose up -d --build
