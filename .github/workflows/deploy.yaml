@@ -33,58 +33,44 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build auth service
-        uses: docker/build-push-action@v6
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v1.2.2
         with:
-          context: ./services/auth-service
-          push: false
-          tags: ecommerce-auth-service:${{ inputs.version }}
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script_stop: true
+          script: |
+            set -e
 
-      - name: Build product service
-        uses: docker/build-push-action@v6
-        with:
-          context: ./services/product-service
-          push: false
-          tags: ecommerce-product-service:${{ inputs.version }}
+            echo "======================================"
+            echo "Starting deployment"
+            echo "Environment: ${{ inputs.environment }}"
+            echo "Version:     ${{ inputs.version }}"
+            echo "======================================"
 
-      - name: Build order service
-        uses: docker/build-push-action@v6
-        with:
-          context: ./services/order-service
-          push: false
-          tags: ecommerce-order-service:${{ inputs.version }}
+            cd ~/DevOps_Microservices_FUll_Lifecycle-main
 
-      - name: Build notification service
-        uses: docker/build-push-action@v6
-        with:
-          context: ./services/notification-service
-          push: false
-          tags: ecommerce-notification-service:${{ inputs.version }}
+            echo "Pulling latest code..."
+            git fetch origin
+            git reset --hard origin/main
 
-      - name: Build frontend
-        uses: docker/build-push-action@v6
-        with:
-          context: ./frontend
-          push: false
-          tags: ecommerce-frontend:${{ inputs.version }}
+            echo "Stopping old containers..."
+            docker compose down
 
-      - name: Build nginx
-        uses: docker/build-push-action@v6
-        with:
-          context: ./nginx
-          push: false
-          tags: ecommerce-nginx:${{ inputs.version }}
+            echo "Building and starting application..."
+            docker compose up -d --build
 
-      - name: Validate Docker Compose
-        run: docker compose config
+            echo "Waiting for services..."
+            sleep 15
 
-      - name: Deployment summary
-        run: |
-          echo "=================================="
-          echo "Deployment completed"
-          echo "Environment: ${{ inputs.environment }}"
-          echo "Version:     ${{ inputs.version }}"
-          echo "=================================="
+            echo "Container status:"
+            docker compose ps
+
+            echo "Testing product API..."
+            curl --fail http://localhost:8080/api/products/products
+
+            echo ""
+            echo "======================================"
+            echo "DEPLOYMENT SUCCESSFUL"
+            echo "======================================"
