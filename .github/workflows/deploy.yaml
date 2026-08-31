@@ -1,3 +1,38 @@
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Target environment
+        required: true
+        type: choice
+        options:
+          - development
+          - staging
+          - production
+        default: development
+
+      version:
+        description: Docker image version
+        required: true
+        default: latest
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy to EC2
+    runs-on: ubuntu-latest
+
+    environment:
+      name: ${{ inputs.environment }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Deploy to EC2
         uses: appleboy/ssh-action@v1.2.2
         with:
@@ -6,40 +41,54 @@
           key: ${{ secrets.EC2_SSH_KEY }}
           command_timeout: 20m
           script: |
+            set -e
+
             echo "======================================"
-            echo "Starting deployment"
-            echo "Environment: ${{ inputs.environment }}"
-            echo "Version:     ${{ inputs.version }}"
+            echo "Starting EC2 deployment"
             echo "======================================"
 
-            REPO_DIR=$(find "$HOME" -maxdepth 3 -type f -name "docker-compose.yml" -exec dirname {} \; | head -n 1)
+            echo "Finding application directory..."
+
+            REPO_DIR=$(find "$HOME" -maxdepth 4 -type f -name "docker-compose.yml" -print -quit | xargs -r dirname)
 
             if [ -z "$REPO_DIR" ]; then
-              echo "ERROR: Could not find docker-compose.yml"
+              echo "ERROR: docker-compose.yml not found"
               exit 1
             fi
 
-            echo "Repository found at: $REPO_DIR"
+            echo "Repository: $REPO_DIR"
 
-            cd "$REPO_DIR" || exit 1
+            cd "$REPO_DIR"
 
             echo "Pulling latest code..."
             git fetch origin
             git reset --hard origin/main
 
-            echo "Building and starting application..."
+            echo "Stopping old containers..."
+            docker compose down
+
+            echo "Building and starting containers..."
             docker compose up -d --build
 
             echo "Waiting for services..."
-            sleep 15
+            sleep 20
 
-            echo "Container status:"
+            echo "======================================"
+            echo "CONTAINER STATUS"
+            echo "======================================"
+
             docker compose ps
 
-            echo "Testing product API..."
-            curl --fail http://localhost:8080/api/products/products
+            echo "======================================"
+            echo "TESTING PRODUCT API"
+            echo "======================================"
+
+            curl --fail --retry 5 --retry-delay 3 \
+              http://localhost:8080/api/products/products
 
             echo ""
             echo "======================================"
             echo "DEPLOYMENT SUCCESSFUL"
+            echo "Environment: ${{ inputs.environment }}"
+            echo "Version: ${{ inputs.version }}"
             echo "======================================"
